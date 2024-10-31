@@ -1,75 +1,78 @@
-// variables
-variable "vpc_id" {}
-variable "sg_allowed_cidrblock" {
-  type = list(string)
-  default = ["0.0.0.0/0"]
+# main.tf
+variable "sg_name" {
+  description = "Name of the security group"
+  type        = string
 }
 
-variable "sg_allowed_security_groups" {
-  type = list(string)
+variable "vpc_id" {
+  description = "VPC ID for the security group"
+  type        = string
+}
+
+variable "ingress_rules" {
+  description = "List of ingress rules"
+  type = list(object({
+    description = string
+    from_port   = number
+    to_port     = number
+    protocol    = string
+    cidr_blocks = list(string)
+  }))
   default = []
 }
-variable "sg_tags" {
-  type = map(string)
-  default = {  Terraform = "true" }
+
+variable "egress_rules" {
+  description = "List of egress rules"
+  type = list(object({
+    description = string
+    from_port   = number
+    to_port     = number
+    protocol    = string
+    cidr_blocks = list(string)
+  }))
+  default = []
 }
 
-variable "sg_name" {
-  type = string
-}
-
-variable "sg_description" {
-  type = string
-}
-variable "sg_rule_description" {
-  type = string
-  default = ""
-}
-
-variable "sg_protocol"{
-  type = string
-  default = "tcp"
-}
-variable "sg_allowed_ports" {
-  type =  number
-  default = 0
-}
-variable "sg_self" {
-  type = bool
-  default = false
-}
 variable "create_security_group" {
   type = bool
   default = true
 }
 
-resource "aws_security_group" "custom_sg" {
+resource "aws_security_group" "this" {
   count = var.create_security_group ? 1 : 0
   name        = var.sg_name
-  description = var.sg_description
   vpc_id      = var.vpc_id
+  description = "Security group managed by Terraform"
 
-  ingress {
-    description = var.sg_rule_description
-    from_port   = var.sg_allowed_ports
-    to_port     = var.sg_allowed_ports
-    protocol    = var.sg_protocol
-    cidr_blocks = var.sg_allowed_cidrblock
-    security_groups = var.sg_allowed_security_groups
-    self        = var.sg_self
+  dynamic "ingress" {
+    for_each = var.ingress_rules
+    content {
+      description = ingress.value.description
+      from_port   = ingress.value.from_port
+      to_port     = ingress.value.to_port
+      protocol    = ingress.value.protocol
+      cidr_blocks = ingress.value.cidr_blocks
+    }
   }
 
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+  dynamic "egress" {
+    for_each = var.egress_rules
+    content {
+      description = egress.value.description
+      from_port   = egress.value.from_port
+      to_port     = egress.value.to_port
+      protocol    = egress.value.protocol
+      cidr_blocks = egress.value.cidr_blocks
+    }
   }
 
-  tags = var.sg_tags
+  tags = {
+    Name = var.sg_name
+  }
 }
 
 
-output "sg_custom_id" {
-  value = join("",aws_security_group.custom_sg.*.id)
+output "security_group_id" {
+  description = "The ID of the security group"
+  value       = aws_security_group.this.id
 }
