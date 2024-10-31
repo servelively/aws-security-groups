@@ -75,7 +75,7 @@ resource "aws_security_group" "this" {
     }
   }
 
-  sg_tags = var.sg_tags
+  tags = var.sg_tags
 }
 
 
