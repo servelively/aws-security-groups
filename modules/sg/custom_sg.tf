@@ -38,11 +38,20 @@ variable "create_security_group" {
   default = true
 }
 
+variable "sg_description" {
+  type = string
+}
+
+variable "sg_tags" {
+  type = map(string)
+  default = {  Terraform = "true" }
+}
+
 resource "aws_security_group" "this" {
   count = var.create_security_group ? 1 : 0
   name        = var.sg_name
   vpc_id      = var.vpc_id
-  description = "Security group managed by Terraform"
+  description = var.sg_description
 
   dynamic "ingress" {
     for_each = var.ingress_rules
@@ -66,9 +75,7 @@ resource "aws_security_group" "this" {
     }
   }
 
-  tags = {
-    Name = var.sg_name
-  }
+  sg_tags = var.sg_tags
 }
 
 
